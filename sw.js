@@ -1,9 +1,9 @@
-// PULSE BREAK - Service Worker (v3)
-const CACHE_VERSION = 'v3';
+// PULSE BREAK - Service Worker (v5)
+const CACHE_VERSION = 'v5';
 const CACHE_NAME = `pulsebreak-${CACHE_VERSION}`;
-const OFFLINE_URL = '/offline.html';
+const OFFLINE_URL = './offline.html';
 
-// Lista de assets para cache (caminhos relativos ao SW)
+// Apenas recursos que com certeza existem
 const ASSETS = [
   './',
   './index.html',
@@ -12,11 +12,7 @@ const ASSETS = [
   './config.json',
   './manifest.json',
   './offline.html',
-  './assets/icons/icon.svg',
-  '/assets/icons/icon-192.png',
-  '/assets/icons/icon-256.png',
-  '/assets/icons/icon-384.png',
-  '/assets/icons/icon-512.png'
+  './assets/icons/icon.svg'
 ];
 
 // Instalação
@@ -24,8 +20,13 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('[SW] Cache aberto v3');
-        return cache.addAll(ASSETS);
+        console.log('[SW] Cache aberto v5');
+        // Adiciona os assets principais, ignorando falhas individuais
+        return Promise.allSettled(
+          ASSETS.map(url => cache.add(url).catch(err => {
+            console.warn('[SW] Falha ao cachear:', url, err);
+          }))
+        );
       })
       .then(() => self.skipWaiting())
   );
@@ -47,10 +48,11 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Interceptação de requisições
+// Interceptação
 self.addEventListener('fetch', event => {
-  // Ignorar requisições para analytics
-  if (event.request.url.includes('google-analytics')) {
+  // Ignorar analytics e outras requisições externas indesejadas
+  if (event.request.url.includes('google-analytics') || 
+      event.request.url.includes('doubleclick')) {
     return;
   }
 
@@ -58,7 +60,7 @@ self.addEventListener('fetch', event => {
     caches.match(event.request)
       .then(cachedResponse => {
         if (cachedResponse) {
-          // Retorna do cache e atualiza em background
+          // Atualiza em background (stale-while-revalidate)
           fetch(event.request)
             .then(networkResponse => {
               if (networkResponse && networkResponse.status === 200) {
@@ -71,7 +73,6 @@ self.addEventListener('fetch', event => {
           return cachedResponse;
         }
 
-        // Se não estiver em cache, busca da rede
         return fetch(event.request)
           .then(networkResponse => {
             if (networkResponse && networkResponse.status === 200) {
@@ -82,7 +83,6 @@ self.addEventListener('fetch', event => {
             return networkResponse;
           })
           .catch(() => {
-            // Fallback offline para navegação
             if (event.request.mode === 'navigate') {
               return caches.match(OFFLINE_URL);
             }
