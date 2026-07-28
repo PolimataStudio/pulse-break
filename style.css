@@ -1,5 +1,5 @@
 /* ============================================
-   PULSE BREAK – Estilos Principais
+   PULSE BREAK – Estilos Principais (v2)
    ============================================ */
 
 /* ----- Variáveis (temas) ----- */
@@ -10,6 +10,7 @@
   --color-secondary: #00A3FF;
   --color-text: #FFFFFF;
   --color-alert: #FF0044;
+  --color-alert-glow: rgba(255, 0, 68, 0.6);
 
   --font-primary: 'Inter', sans-serif;
   --font-display: 'Orbitron', monospace;
@@ -252,7 +253,7 @@ body {
   border-color: var(--color-secondary);
 }
 
-/* ----- Alert Overlay ----- */
+/* ----- Alert Overlay (melhorado) ----- */
 .alert-overlay {
   position: fixed;
   top: 0;
@@ -266,17 +267,37 @@ body {
   z-index: 9999;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
 }
 
 .alert-overlay.active {
   display: flex;
 }
 
+.alert-overlay::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at center, rgba(255, 0, 68, 0.05) 0%, transparent 70%);
+  animation: rotateGlow 20s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes rotateGlow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .alert-content {
   text-align: center;
   padding: 40px;
-  animation: alertPulse 1.2s ease-in-out infinite alternate;
+  animation: alertPulse 1.4s ease-in-out infinite alternate;
+  position: relative;
+  z-index: 1;
 }
 
 .alert-main {
@@ -284,21 +305,51 @@ body {
   font-size: clamp(4rem, 25vw, 12rem);
   font-weight: 400;
   color: var(--color-alert);
-  text-shadow: 0 0 60px rgba(255, 0, 68, 0.6), 0 0 120px rgba(255, 0, 68, 0.3);
+  text-shadow: 
+    0 0 30px rgba(255, 0, 68, 0.8),
+    0 0 60px rgba(255, 0, 68, 0.6),
+    0 0 120px rgba(255, 0, 68, 0.3);
   letter-spacing: 12px;
   margin: 0;
   line-height: 1;
   animation: blinkText 0.9s step-end infinite;
+  filter: drop-shadow(0 0 20px rgba(255, 0, 68, 0.5));
 }
 
 .alert-sub {
-  font-family: var(--font-primary);
+  font-family: var(--font-title);
   font-weight: 300;
-  font-size: clamp(1.2rem, 5vw, 2.4rem);
-  color: rgba(255, 255, 255, 0.7);
-  letter-spacing: 6px;
+  font-size: clamp(1.5rem, 5vw, 3rem);
+  color: rgba(255, 255, 255, 0.8);
+  letter-spacing: 8px;
   margin-top: 20px;
   text-shadow: 0 0 30px rgba(0, 245, 255, 0.2);
+  animation: subPulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes subPulse {
+  0% { opacity: 0.7; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1.02); }
+}
+
+/* Adicionando um contorno neon no overlay */
+.alert-overlay.active .alert-content::after {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: -20px;
+  right: -20px;
+  bottom: -20px;
+  border: 2px solid rgba(255, 0, 68, 0.1);
+  border-radius: 40px;
+  box-shadow: 0 0 80px rgba(255, 0, 68, 0.05), inset 0 0 80px rgba(255, 0, 68, 0.02);
+  pointer-events: none;
+  animation: borderPulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes borderPulse {
+  0% { border-color: rgba(255, 0, 68, 0.05); }
+  100% { border-color: rgba(255, 0, 68, 0.2); }
 }
 
 /* ----- Config Overlay ----- */
@@ -525,12 +576,12 @@ body {
 
 @keyframes alertPulse {
   0% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(1.02); opacity: 0.9; }
+  100% { transform: scale(1.02); opacity: 0.95; }
 }
 
 @keyframes blinkText {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.2; }
+  50% { opacity: 0.15; }
 }
 
 /* ----- Redução de movimento (acessibilidade) ----- */
@@ -570,6 +621,9 @@ body {
   .alert-main {
     letter-spacing: 6px;
   }
+  .alert-sub {
+    letter-spacing: 4px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -595,6 +649,13 @@ body {
   }
   .config-panel h2 {
     font-size: 2rem;
+  }
+  .alert-main {
+    letter-spacing: 4px;
+  }
+  .alert-sub {
+    letter-spacing: 2px;
+    font-size: 1.2rem;
   }
 }
 
