@@ -668,29 +668,40 @@
         }, 5000);
 
         // Registrar Service Worker se suportado
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js')
-                .then(registration => {
-                    console.log('Service Worker registrado.');
-                    // Verificar se há atualização pendente
-                    if (registration.waiting) {
-                        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-                    }
-                    // Detectar nova versão instalada
-                    registration.addEventListener('updatefound', () => {
-                        const newWorker = registration.installing;
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                // Nova versão disponível, notificar
-                                console.log('Nova versão do PWA disponível. Recarregue para atualizar.');
-                                // Poderia mostrar um toast, mas manteremos simples
-                            }
-                        });
-                    });
-                })
-                .catch(() => console.warn('Falha ao registrar Service Worker.'));
-        }
+// Registrar Service Worker
+if ('serviceWorker' in navigator) {
+  // Usa caminho relativo ao HTML atual
+  const swPath = './sw.js';
+  navigator.serviceWorker.register(swPath, { scope: './' })
+    .then(registration => {
+      console.log('Service Worker registrado com escopo:', registration.scope);
+      
+      // Verifica se o SW está controlando a página
+      if (!navigator.serviceWorker.controller) {
+        console.warn('Service Worker não está controlando a página. Recarregue.');
+        // Tentar recarregar após um tempo para ativar
+        setTimeout(() => {
+          if (!navigator.serviceWorker.controller) {
+            window.location.reload();
+          }
+        }, 2000);
+      }
 
+      // Detectar nova versão
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            console.log('Nova versão disponível. Recarregue para atualizar.');
+            // Poderia exibir um toast aqui
+          }
+        });
+      });
+    })
+    .catch(err => {
+      console.warn('Falha ao registrar Service Worker:', err);
+    });
+    }
         console.log('PULSE BREAK iniciado.');
     }
 
