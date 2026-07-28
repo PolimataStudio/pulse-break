@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PULSE BREAK - Professional Standing Reminder</title>
+  
+  <!-- SEO e Metadados -->
+  <meta name="description" content="Lembre-se de levantar periodicamente. Configure circuitos personalizados e mantenha uma rotina saudável.">
+  <meta name="theme-color" content="#050505">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="/">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="PULSE BREAK - Professional Standing Reminder">
+  <meta property="og:description" content="Lembre-se de levantar periodicamente. Configure circuitos personalizados e mantenha uma rotina saudável.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="/">
+  <meta property="og:image" content="/assets/icons/icon-512.png">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
+  <meta property="og:locale" content="pt_BR">
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="PULSE BREAK - Professional Standing Reminder">
+  <meta name="twitter:description" content="Lembre-se de levantar periodicamente. Configure circuitos personalizados e mantenha uma rotina saudável.">
+  <meta name="twitter:image" content="/assets/icons/icon-512.png">
+
+  <!-- Favicon e ícones -->
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/assets/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/icons/favicon-16x16.png">
+  <link rel="manifest" href="/assets/icons//site.webmanifest">
+
+  <!-- Segurança e Políticas -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self';">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="permissions-policy" content="geolocation=(), microphone=(), camera=()">
+
+  <!-- Pré-conexão e preload -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap" as="style" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Overlay de Alerta Fullscreen -->
+    <div id="alertOverlay" class="alert-overlay">
+      <div class="alert-content">
+        <h1 class="alert-main">LEVANTE-SE</h1>
+        <p class="alert-sub" id="alertSub">PAUSA DE 2 MINUTOS</p>
+      </div>
+    </div>
+
+    <!-- Tela de Configuração -->
+    <div id="configOverlay" class="config-overlay">
+      <div class="config-panel">
+        <h2>Configuração</h2>
+        <div class="config-section">
+          <h3>Circuitos</h3>
+          <div id="cyclesList" class="cycles-list"></div>
+          <div class="add-cycle">
+            <input type="number" id="newCycleInput" placeholder="Minutos" min="1" step="1">
+            <button id="addCycleBtn">Adicionar</button>
+          </div>
+        </div>
+        <div class="config-section">
+          <h3>Pausa</h3>
+          <label>Duração da pausa (segundos): 
+            <input type="number" id="pauseDurationInput" min="5" step="1">
+          </label>
+        </div>
+        <div class="config-section">
+          <h3>Alerta</h3>
+          <label>Duração do alerta (segundos): 
+            <input type="number" id="alertDurationInput" min="1" step="1">
+          </label>
+        </div>
+        <div class="config-section">
+          <h3>Opções</h3>
+          <label><input type="checkbox" id="loopCheck"> Loop</label>
+          <label><input type="checkbox" id="soundCheck"> Som</label>
+          <label><input type="checkbox" id="vibrationCheck"> Vibração</label>
+        </div>
+        <div class="config-actions">
+          <button id="saveConfigBtn">Salvar</button>
+          <button id="cancelConfigBtn">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tela Principal -->
+    <main class="main-screen">
+      <header class="header">
+        <div class="logo">
+          <span class="logo-icon">⚡</span>
+          <h1 class="logo-title">PULSE BREAK</h1>
+        </div>
+        <p class="subtitle">Professional Standing Reminder</p>
+      </header>
+
+      <section class="timer-section">
+        <div class="timer-display" id="timerDisplay">00:20:00</div>
+        <div class="timer-info">
+          <div class="info-item">
+            <span class="label">Próxima pausa</span>
+            <span class="value" id="nextBreak">--</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Circuito atual</span>
+            <span class="value" id="currentCycle">1 / 4</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Próximo circuito</span>
+            <span class="value" id="nextCycle">20 min</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Tempo restante</span>
+            <span class="value" id="timeRemaining">20:00</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="controls">
+        <button id="startBtn" class="btn primary">START</button>
+        <button id="stopBtn" class="btn secondary">STOP</button>
+        <button id="resetBtn" class="btn secondary">RESET</button>
+        <button id="configBtn" class="btn config">CONFIGURAÇÃO</button>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
