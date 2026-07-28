@@ -104,7 +104,7 @@
     function sendNotification(title, body) {
         if ('Notification' in window && Notification.permission === 'granted') {
             try {
-                new Notification(title, { body, icon: 'assets/icons/icon-192.png' });
+                new Notification(title, { body, icon: './assets/icons/icon.svg' });
             } catch (e) { /* ignore */ }
         }
     }
@@ -224,7 +224,7 @@
         // Timer display
         el.timerDisplay.textContent = formatTime(state.timeLeft);
 
-        // Próxima pausa - será exibida quando o timer chegar a zero? Vamos mostrar a duração da pausa atual
+        // Próxima pausa
         el.nextBreak.textContent = `${state.config.pauseDuration}s`;
 
         // Circuito atual
@@ -238,7 +238,7 @@
             el.nextCycle.textContent = '--';
         }
 
-        // Tempo restante (em minutos:segundos)
+        // Tempo restante
         el.timeRemaining.textContent = formatTimeShort(state.timeLeft);
     }
 
@@ -250,7 +250,6 @@
             state.timeLeft--;
             updateUI();
         } else {
-            // Tempo esgotado -> iniciar alerta
             startAlert();
         }
     }
@@ -258,7 +257,6 @@
     function startTimer() {
         if (state.isRunning) return;
         if (state.timeLeft <= 0) {
-            // Se não houver tempo, inicializa com o ciclo atual
             const dur = getCycleDuration(state.currentCycleIndex);
             state.timeLeft = dur * 60;
         }
@@ -287,7 +285,6 @@
         state.currentCycleIndex = 0;
         const dur = getCycleDuration(0);
         state.timeLeft = dur * 60;
-        // Fechar alerta se estiver aberto
         hideAlert();
         updateUI();
     }
@@ -303,20 +300,13 @@
         }
         releaseWakeLock();
 
-        // Tocar som
         playAlarmSound();
-        // Vibrar
         vibrate([500, 200, 500, 200, 1000]);
-        // Notificação
         sendNotification('PULSE BREAK', 'Hora de levantar! Pausa iniciada.');
 
-        // Exibir overlay
         showAlert();
-
-        // Tentar fullscreen
         requestFullscreen();
 
-        // Iniciar contagem do alerta
         let alertSeconds = state.config.fullscreenAlert;
         if (state.alertTimer) clearInterval(state.alertTimer);
         state.alertTimer = setInterval(() => {
@@ -324,7 +314,6 @@
             if (alertSeconds <= 0) {
                 clearInterval(state.alertTimer);
                 state.alertTimer = null;
-                // Fechar alerta e iniciar pausa
                 hideAlert();
                 startPause();
             }
@@ -336,9 +325,7 @@
         const sub = el.alertSub;
         sub.textContent = `PAUSA DE ${state.config.pauseDuration} SEGUNDOS`;
         overlay.classList.add('active');
-        // Bloquear scroll
         document.body.style.overflow = 'hidden';
-        // Tentar fullscreen novamente
         requestFullscreen();
     }
 
@@ -368,13 +355,11 @@
                 state.timeLeft--;
                 updateUI();
             } else {
-                // Pausa terminou -> próximo ciclo
                 clearInterval(state.timerInterval);
                 state.timerInterval = null;
                 state.isRunning = false;
                 releaseWakeLock();
                 advanceCycle();
-                // Iniciar próximo ciclo automaticamente
                 const dur = getCycleDuration(state.currentCycleIndex);
                 state.timeLeft = dur * 60;
                 startTimer();
@@ -391,40 +376,35 @@
             if (state.config.loop) {
                 next = 0;
             } else {
-                next = cycles.length - 1; // fica no último
+                next = cycles.length - 1;
             }
         }
         state.currentCycleIndex = next;
-        // Atualizar UI
         updateUI();
     }
 
     // --- Carregar configuração ---
     function loadConfig() {
-        fetch('config.json')
+        fetch('./config.json')
             .then(response => {
                 if (!response.ok) throw new Error('Falha ao carregar config.json');
                 return response.json();
             })
             .then(data => {
-                // Mesclar com padrões
                 state.config.cycles = data.cycles || [20, 30, 20, 40];
                 state.config.pauseDuration = data.pauseDuration || 120;
                 state.config.fullscreenAlert = data.fullscreenAlert || 10;
                 state.config.loop = data.loop !== undefined ? data.loop : true;
                 state.config.sound = data.sound !== undefined ? data.sound : true;
                 state.config.vibration = data.vibration !== undefined ? data.vibration : true;
-                // Inicializar tempo
                 const dur = getCycleDuration(0);
                 state.timeLeft = dur * 60;
                 state.currentCycleIndex = 0;
                 updateUI();
-                // Atualizar configuração na interface
                 populateConfigUI();
             })
             .catch(err => {
                 console.warn('Erro ao carregar config.json, usando padrões.', err);
-                // Usar padrões já definidos
                 const dur = getCycleDuration(0);
                 state.timeLeft = dur * 60;
                 state.currentCycleIndex = 0;
@@ -436,13 +416,9 @@
     // --- Populate Config UI ---
     function populateConfigUI() {
         const cfg = state.config;
-        // Ciclos
         renderCycles();
-        // Pausa
         el.pauseDurationInput.value = cfg.pauseDuration;
-        // Alerta
         el.alertDurationInput.value = cfg.fullscreenAlert;
-        // Checkboxes
         el.loopCheck.checked = cfg.loop;
         el.soundCheck.checked = cfg.sound;
         el.vibrationCheck.checked = cfg.vibration;
@@ -460,7 +436,6 @@
             `;
             list.appendChild(item);
         });
-        // Adicionar eventos de remoção
         list.querySelectorAll('.cycle-del').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const idx = parseInt(e.target.dataset.index, 10);
@@ -475,12 +450,10 @@
             return;
         }
         state.config.cycles.splice(index, 1);
-        // Ajustar índice atual se necessário
         if (state.currentCycleIndex >= state.config.cycles.length) {
             state.currentCycleIndex = state.config.cycles.length - 1;
         }
         renderCycles();
-        // Reiniciar timer se não estiver rodando
         if (!state.isRunning && !state.isAlerting) {
             const dur = getCycleDuration(state.currentCycleIndex);
             state.timeLeft = dur * 60;
@@ -504,7 +477,6 @@
 
     // --- Salvar configuração ---
     function saveConfig() {
-        // Coletar dados da UI
         const cycles = [];
         document.querySelectorAll('.cycle-item span').forEach(span => {
             const text = span.textContent.trim();
@@ -529,7 +501,6 @@
         const sound = el.soundCheck.checked;
         const vibration = el.vibrationCheck.checked;
 
-        // Atualizar estado
         state.config.cycles = cycles;
         state.config.pauseDuration = pause;
         state.config.fullscreenAlert = alertDur;
@@ -537,19 +508,15 @@
         state.config.sound = sound;
         state.config.vibration = vibration;
 
-        // Se o timer não estiver rodando, resetar para o primeiro ciclo
         if (!state.isRunning && !state.isAlerting) {
             state.currentCycleIndex = 0;
             const dur = getCycleDuration(0);
             state.timeLeft = dur * 60;
             updateUI();
         } else {
-            // Se estiver rodando, continuar com o ciclo atual, mas atualizar UI
             updateUI();
         }
-        // Fechar configuração
         closeConfig();
-        // Atualizar lista
         renderCycles();
         populateConfigUI();
     }
@@ -567,26 +534,6 @@
         state.isConfigOpen = false;
         el.configOverlay.classList.remove('active');
         document.body.style.overflow = '';
-    }
-
-    // --- Atualização do Service Worker ---
-    function setupServiceWorkerUpdates() {
-        if ('serviceWorker' in navigator) {
-            let refreshing = false;
-            // Quando o SW controlar uma nova página, recarregar
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (refreshing) return;
-                refreshing = true;
-                window.location.reload();
-            });
-
-            // Verificar periodicamente se há nova versão (a cada 60s)
-            setInterval(() => {
-                navigator.serviceWorker.ready.then(registration => {
-                    registration.update();
-                });
-            }, 60000);
-        }
     }
 
     // --- Eventos ---
@@ -626,14 +573,12 @@
 
         el.cancelConfigBtn.addEventListener('click', closeConfig);
 
-        // Fechar config ao clicar fora (backdrop)
         el.configOverlay.addEventListener('click', (e) => {
             if (e.target === el.configOverlay) {
                 closeConfig();
             }
         });
 
-        // Teclas de atalho
         document.addEventListener('keydown', (e) => {
             if (e.key === ' ' && !state.isConfigOpen && !el.alertOverlay.classList.contains('active')) {
                 e.preventDefault();
@@ -648,48 +593,57 @@
             }
         });
 
-        // Solicitar permissão de notificação
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
         }
     }
 
-// --- Inicialização ---
-function init() {
-  loadConfig();
-  initEvents();
-  setupServiceWorkerUpdates();
+    // --- Inicialização ---
+    function init() {
+        loadConfig();
+        initEvents();
 
-  // Atualizar UI periodicamente mesmo parado
-  setInterval(() => {
-    if (!state.isRunning && !state.isAlerting) {
-      updateUI();
-    }
-  }, 5000);
+        // Atualizar UI periodicamente (garantia)
+        setInterval(() => {
+            if (!state.isRunning && !state.isAlerting) {
+                updateUI();
+            }
+        }, 5000);
 
-  // Registrar Service Worker
-  if ('serviceWorker' in navigator) {
-    const swPath = './sw.js';
-    navigator.serviceWorker.register(swPath, { scope: './' })
-      .then(registration => {
-        console.log('Service Worker registrado com escopo:', registration.scope);
-        // Não recarregar automaticamente; apenas logar se não controlar
-        if (!navigator.serviceWorker.controller) {
-          console.warn('Service Worker não está controlando a página. Recarregue manualmente se necessário.');
+        // Registrar Service Worker com escopo relativo
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js', { scope: './' })
+                .then(registration => {
+                    console.log('Service Worker registrado com escopo:', registration.scope);
+                    if (!navigator.serviceWorker.controller) {
+                        console.warn('Service Worker não está controlando a página. Recarregue manualmente se necessário.');
+                    }
+                    // Verificar atualização pendente
+                    if (registration.waiting) {
+                        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    }
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('Nova versão do PWA disponível. Recarregue para atualizar.');
+                            }
+                        });
+                    });
+                })
+                .catch(err => {
+                    console.warn('Falha ao registrar Service Worker:', err);
+                });
         }
-      })
-      .catch(err => {
-        console.warn('Falha ao registrar Service Worker:', err);
-      });
-  }
 
-  console.log('PULSE BREAK iniciado.');
-}
+        console.log('PULSE BREAK iniciado.');
+    }
 
-// Aguardar DOM
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
+    // Aguardar DOM
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
 })();
