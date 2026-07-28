@@ -1,6 +1,6 @@
 // PULSE BREAK - Service Worker (v2)
 const CACHE_VERSION = 'v2';
-const CACHE_NAME = `pulsebreak-${CACHE_VERSION}`;
+const CACHE_NAME = `pulse-break-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 
 const ASSETS = [
@@ -11,6 +11,7 @@ const ASSETS = [
   '/config.json',
   '/manifest.json',
   '/offline.html',
+  '/404.html',
   '/assets/icons/icon.svg',
   '/assets/icons/icon-192.png',
   '/assets/icons/icon-256.png',
