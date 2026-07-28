@@ -654,62 +654,42 @@
         }
     }
 
-    // --- Inicialização ---
-    function init() {
-        loadConfig();
-        initEvents();
-        setupServiceWorkerUpdates();
+// --- Inicialização ---
+function init() {
+  loadConfig();
+  initEvents();
+  setupServiceWorkerUpdates();
 
-        // Atualizar UI periodicamente mesmo parado (garantia)
-        setInterval(() => {
-            if (!state.isRunning && !state.isAlerting) {
-                updateUI();
-            }
-        }, 5000);
+  // Atualizar UI periodicamente mesmo parado
+  setInterval(() => {
+    if (!state.isRunning && !state.isAlerting) {
+      updateUI();
+    }
+  }, 5000);
 
-        // Registrar Service Worker se suportado
-// Registrar Service Worker
-if ('serviceWorker' in navigator) {
-  // Usa caminho relativo ao HTML atual
-  const swPath = './sw.js';
-  navigator.serviceWorker.register(swPath, { scope: './' })
-    .then(registration => {
-      console.log('Service Worker registrado com escopo:', registration.scope);
-      
-      // Verifica se o SW está controlando a página
-      if (!navigator.serviceWorker.controller) {
-        console.warn('Service Worker não está controlando a página. Recarregue.');
-        // Tentar recarregar após um tempo para ativar
-        setTimeout(() => {
-          if (!navigator.serviceWorker.controller) {
-            window.location.reload();
-          }
-        }, 2000);
-      }
-
-      // Detectar nova versão
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.log('Nova versão disponível. Recarregue para atualizar.');
-            // Poderia exibir um toast aqui
-          }
-        });
+  // Registrar Service Worker
+  if ('serviceWorker' in navigator) {
+    const swPath = './sw.js';
+    navigator.serviceWorker.register(swPath, { scope: './' })
+      .then(registration => {
+        console.log('Service Worker registrado com escopo:', registration.scope);
+        // Não recarregar automaticamente; apenas logar se não controlar
+        if (!navigator.serviceWorker.controller) {
+          console.warn('Service Worker não está controlando a página. Recarregue manualmente se necessário.');
+        }
+      })
+      .catch(err => {
+        console.warn('Falha ao registrar Service Worker:', err);
       });
-    })
-    .catch(err => {
-      console.warn('Falha ao registrar Service Worker:', err);
-    });
-    }
-        console.log('PULSE BREAK iniciado.');
-    }
+  }
 
-    // Aguardar DOM
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
+  console.log('PULSE BREAK iniciado.');
+}
 
+// Aguardar DOM
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 })();
