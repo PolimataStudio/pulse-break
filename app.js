@@ -22,7 +22,10 @@
         audioCtx: null,
         oscillator: null,
         gainNode: null,
-        isConfigOpen: false
+        isConfigOpen: false,
+        // --- Novos campos para precisão ---
+        lastTimestamp: 0,
+        isVisible: true
     };
 
     // --- Elementos DOM ---
@@ -100,22 +103,79 @@
         return getCycleDuration(index);
     }
 
-    // --- Notificações ---
-    function sendNotification(title, body) {
-        if ('Notification' in window && Notification.permission === 'granted') {
+    // --- Badging API ---
+    function setBadge(count) {
+        if ('setAppBadge' in navigator) {
             try {
-                new Notification(title, { body, icon: './assets/icons/icon.svg' });
+                if (count > 0) {
+                    navigator.setAppBadge(count);
+                } else {
+                    navigator.clearAppBadge();
+                }
             } catch (e) { /* ignore */ }
         }
     }
 
-    // --- Vibração ---
+    function clearBadge() {
+        if ('clearAppBadge' in navigator) {
+            try {
+                navigator.clearAppBadge();
+            } catch (e) { /* ignore */ }
+        }
+    }
+
+    // --- Notificações avançadas ---
+    function sendRichNotification(title, body, options) {
+        if (!('Notification' in window) || Notification.permission !== 'granted') {
+            return;
+        }
+        try {
+            const defaultOptions = {
+                icon: './assets/icons/icon.svg',
+                badge: './assets/icons/icon.svg',
+                tag: 'pulse-break-alert',
+                requireInteraction: true,
+                timestamp: Date.now(),
+                actions: [
+                    { action: 'snooze', title: 'Adiar 5 min' },
+                    { action: 'dismiss', title: 'Ignorar' }
+                ]
+            };
+            const mergedOptions = Object.assign({}, defaultOptions, options);
+            const notification = new Notification(title, mergedOptions);
+            return notification;
+        } catch (e) {
+            // Fallback para notificação simples
+            try {
+                new Notification(title, { body, icon: './assets/icons/icon.svg' });
+            } catch (e2) { /* ignore */ }
+        }
+    }
+
+    // --- Notificações (compatibilidade) ---
+    function sendNotification(title, body) {
+        sendRichNotification(title, body, { tag: 'pulse-break-alert' });
+    }
+
+    // --- Vibração (com padrões distintos) ---
     function vibrate(pattern) {
         if (state.config.vibration && navigator.vibrate) {
             try {
                 navigator.vibrate(pattern);
             } catch (e) { /* ignore */ }
         }
+    }
+
+    function vibrateAlert() {
+        vibrate([500, 200, 500, 200, 1000]);
+    }
+
+    function vibrateRepeat() {
+        vibrate([200, 100, 200, 100, 500]);
+    }
+
+    function vibrateReturn() {
+        vibrate([100, 100, 100]);
     }
 
     // --- Som (Web Audio API) ---
@@ -129,6 +189,7 @@
             if (ctx.state === 'suspended') {
                 ctx.resume();
             }
+            // Primeiro tom
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'sawtooth';
@@ -140,7 +201,7 @@
             gain.connect(ctx.destination);
             osc.start(ctx.currentTime);
             osc.stop(ctx.currentTime + 0.8);
-            // Repetir 3 vezes com pequeno intervalo
+
             setTimeout(() => {
                 try {
                     const osc2 = ctx.createOscillator();
@@ -156,6 +217,7 @@
                     osc2.stop(ctx.currentTime + 0.6);
                 } catch (e) { /* ignore */ }
             }, 300);
+
             setTimeout(() => {
                 try {
                     const osc3 = ctx.createOscillator();
@@ -221,36 +283,60 @@
         const currentDur = getCycleDuration(currentIdx);
         const nextDur = getNextCycleDuration(currentIdx);
 
-        // Timer display
         el.timerDisplay.textContent = formatTime(state.timeLeft);
-
-        // Próxima pausa
         el.nextBreak.textContent = `${state.config.pauseDuration}s`;
-
-        // Circuito atual
         el.currentCycle.textContent = totalCycles > 0 ? getCycleDisplay(currentIdx) : '-- / --';
-
-        // Próximo circuito
         if (totalCycles > 0) {
             const nextIdx = getNextCycleIndex(currentIdx);
             el.nextCycle.textContent = formatMinutes(getCycleDuration(nextIdx));
         } else {
             el.nextCycle.textContent = '--';
         }
-
-        // Tempo restante
         el.timeRemaining.textContent = formatTimeShort(state.timeLeft);
     }
 
-    // --- Lógica do timer ---
+    // --- Precisão temporal: recuperação ao retornar à aba ---
+    function handleVisibilityChange() {
+        const wasVisible = state.isVisible;
+        state.isVisible = !document.hidden;
+
+        if (state.isVisible && !wasVisible && state.isRunning && !state.isAlerting) {
+            // Recalcular tempo restante com base no timestamp
+            const now = Date.now();
+            const elapsed = Math.floor((now - state.lastTimestamp) / 1000);
+            if (elapsed > 0) {
+                state.timeLeft = Math.max(0, state.timeLeft - elapsed);
+                updateUI();
+                // Se o tempo expirou durante a ausência, disparar alerta
+                if (state.timeLeft <= 0 && state.isRunning && !state.isAlerting) {
+                    startAlert();
+                }
+            }
+            state.lastTimestamp = now;
+        } else if (state.isVisible) {
+            // Atualizar timestamp ao ficar visível
+            state.lastTimestamp = Date.now();
+        }
+    }
+
+    // --- Lógica do timer (modificada para precisão) ---
     function tick() {
         if (!state.isRunning || state.isAlerting) return;
 
-        if (state.timeLeft > 0) {
-            state.timeLeft--;
+        const now = Date.now();
+        const elapsed = Math.floor((now - state.lastTimestamp) / 1000);
+
+        if (elapsed >= 1) {
+            state.timeLeft = Math.max(0, state.timeLeft - elapsed);
+            state.lastTimestamp = now;
             updateUI();
+
+            if (state.timeLeft <= 0) {
+                startAlert();
+            }
         } else {
-            startAlert();
+            // Se não passou tempo suficiente, apenas atualiza timestamp
+            state.lastTimestamp = now;
         }
     }
 
@@ -262,6 +348,7 @@
         }
         state.isRunning = true;
         state.isPaused = false;
+        state.lastTimestamp = Date.now();
         requestWakeLock();
         if (state.timerInterval) clearInterval(state.timerInterval);
         state.timerInterval = setInterval(tick, 1000);
@@ -285,7 +372,9 @@
         state.currentCycleIndex = 0;
         const dur = getCycleDuration(0);
         state.timeLeft = dur * 60;
+        state.lastTimestamp = Date.now();
         hideAlert();
+        clearBadge();
         updateUI();
     }
 
@@ -300,13 +389,28 @@
         }
         releaseWakeLock();
 
+        // Som e vibração
         playAlarmSound();
-        vibrate([500, 200, 500, 200, 1000]);
-        sendNotification('PULSE BREAK', 'Hora de levantar! Pausa iniciada.');
+        vibrateAlert();
 
+        // Badge indicando pausa
+        setBadge(1);
+
+        // Notificação rica
+        sendRichNotification('PULSE BREAK', 'Hora de levantar! Pausa iniciada.', {
+            tag: 'pulse-break-alert',
+            requireInteraction: true,
+            actions: [
+                { action: 'snooze', title: 'Adiar 5 min' },
+                { action: 'dismiss', title: 'Ignorar' }
+            ]
+        });
+
+        // Exibir overlay
         showAlert();
         requestFullscreen();
 
+        // Contagem regressiva do alerta
         let alertSeconds = state.config.fullscreenAlert;
         if (state.alertTimer) clearInterval(state.alertTimer);
         state.alertTimer = setInterval(() => {
@@ -339,6 +443,7 @@
             state.alertTimer = null;
         }
         state.isAlerting = false;
+        clearBadge();
     }
 
     // --- Pausa ---
@@ -347,22 +452,31 @@
         state.timeLeft = pauseSec;
         state.isRunning = true;
         state.isPaused = false;
+        state.lastTimestamp = Date.now();
         requestWakeLock();
         if (state.timerInterval) clearInterval(state.timerInterval);
         state.timerInterval = setInterval(() => {
             if (!state.isRunning || state.isAlerting) return;
-            if (state.timeLeft > 0) {
-                state.timeLeft--;
+            const now = Date.now();
+            const elapsed = Math.floor((now - state.lastTimestamp) / 1000);
+            if (elapsed >= 1) {
+                state.timeLeft = Math.max(0, state.timeLeft - elapsed);
+                state.lastTimestamp = now;
                 updateUI();
+                if (state.timeLeft <= 0) {
+                    clearInterval(state.timerInterval);
+                    state.timerInterval = null;
+                    state.isRunning = false;
+                    releaseWakeLock();
+                    advanceCycle();
+                    const dur = getCycleDuration(state.currentCycleIndex);
+                    state.timeLeft = dur * 60;
+                    state.lastTimestamp = Date.now();
+                    vibrateReturn();
+                    startTimer();
+                }
             } else {
-                clearInterval(state.timerInterval);
-                state.timerInterval = null;
-                state.isRunning = false;
-                releaseWakeLock();
-                advanceCycle();
-                const dur = getCycleDuration(state.currentCycleIndex);
-                state.timeLeft = dur * 60;
-                startTimer();
+                state.lastTimestamp = now;
             }
         }, 1000);
         updateUI();
@@ -400,6 +514,7 @@
                 const dur = getCycleDuration(0);
                 state.timeLeft = dur * 60;
                 state.currentCycleIndex = 0;
+                state.lastTimestamp = Date.now();
                 updateUI();
                 populateConfigUI();
             })
@@ -408,6 +523,7 @@
                 const dur = getCycleDuration(0);
                 state.timeLeft = dur * 60;
                 state.currentCycleIndex = 0;
+                state.lastTimestamp = Date.now();
                 updateUI();
                 populateConfigUI();
             });
@@ -457,6 +573,7 @@
         if (!state.isRunning && !state.isAlerting) {
             const dur = getCycleDuration(state.currentCycleIndex);
             state.timeLeft = dur * 60;
+            state.lastTimestamp = Date.now();
             updateUI();
         }
     }
@@ -471,6 +588,7 @@
         if (!state.isRunning && !state.isAlerting) {
             const dur = getCycleDuration(state.currentCycleIndex);
             state.timeLeft = dur * 60;
+            state.lastTimestamp = Date.now();
             updateUI();
         }
     }
@@ -512,6 +630,7 @@
             state.currentCycleIndex = 0;
             const dur = getCycleDuration(0);
             state.timeLeft = dur * 60;
+            state.lastTimestamp = Date.now();
             updateUI();
         } else {
             updateUI();
@@ -543,6 +662,7 @@
             if (state.timeLeft <= 0) {
                 const dur = getCycleDuration(state.currentCycleIndex);
                 state.timeLeft = dur * 60;
+                state.lastTimestamp = Date.now();
             }
             startTimer();
         });
@@ -593,32 +713,38 @@
             }
         });
 
-        if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
-        }
+        // Listener de visibilidade para recuperação
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // Solicitar permissão de notificação (após interação)
+        const requestNotificationPermission = () => {
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        };
+        document.addEventListener('click', requestNotificationPermission, { once: true });
+        document.addEventListener('touchstart', requestNotificationPermission, { once: true });
     }
 
     // --- Inicialização ---
     function init() {
         loadConfig();
         initEvents();
+        state.lastTimestamp = Date.now();
 
-        // Atualizar UI periodicamente (garantia)
         setInterval(() => {
             if (!state.isRunning && !state.isAlerting) {
                 updateUI();
             }
         }, 5000);
 
-        // Registrar Service Worker com escopo relativo
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js', { scope: './' })
                 .then(registration => {
                     console.log('Service Worker registrado com escopo:', registration.scope);
                     if (!navigator.serviceWorker.controller) {
-                        console.warn('Service Worker não está controlando a página. Recarregue manualmente se necessário.');
+                        console.warn('Service Worker não está controlando a página.');
                     }
-                    // Verificar atualização pendente
                     if (registration.waiting) {
                         registration.waiting.postMessage({ type: 'SKIP_WAITING' });
                     }
@@ -636,10 +762,9 @@
                 });
         }
 
-        console.log('PULSE BREAK iniciado.');
+        console.log('PULSE BREAK iniciado (modo evoluído).');
     }
 
-    // Aguardar DOM
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
