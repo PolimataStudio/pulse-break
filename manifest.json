@@ -4,7 +4,7 @@
   "short_name": "PulseBreak",
   "description": "Professional Standing Reminder - Lembre-se de levantar periodicamente.",
   "start_url": "/index.html",
-  "scope": "/",
+  "scope": "./",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "portrait",
