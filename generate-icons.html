@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerar Ícones PWA - PULSE BREAK</title>
+    <style>
+        body {
+            background: #050505;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            background: rgba(16,16,16,0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 40px 30px;
+            border: 1px solid rgba(0,245,255,0.1);
+            box-shadow: 0 0 60px rgba(0,245,255,0.05);
+        }
+        h1 {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 2.8rem;
+            color: #00F5FF;
+            text-shadow: 0 0 20px rgba(0,245,255,0.3);
+            margin-bottom: 0.5rem;
+        }
+        p {
+            color: rgba(255,255,255,0.7);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin: 20px 0;
+        }
+        .btn {
+            padding: 12px 24px;
+            background: rgba(0,245,255,0.1);
+            color: #00F5FF;
+            border: 1px solid rgba(0,245,255,0.2);
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn:hover {
+            background: #00F5FF;
+            color: #050505;
+            box-shadow: 0 0 20px rgba(0,245,255,0.2);
+        }
+        .btn.primary {
+            background: #00F5FF;
+            color: #050505;
+            border-color: #00F5FF;
+        }
+        .btn.primary:hover {
+            background: #00D4E0;
+            box-shadow: 0 0 30px rgba(0,245,255,0.3);
+        }
+        .preview {
+            margin: 20px 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
+        .preview-item {
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 10px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .preview-item img {
+            display: block;
+            max-width: 80px;
+            height: auto;
+            background: #050505;
+            border-radius: 8px;
+        }
+        .preview-item span {
+            display: block;
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.3);
+            margin-top: 4px;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            background: rgba(0,245,255,0.05);
+            border-radius: 12px;
+            color: rgba(255,255,255,0.5);
+            font-size: 0.9rem;
+            border: 1px solid rgba(0,245,255,0.05);
+        }
+        .status.success {
+            color: #00F5FF;
+            border-color: rgba(0,245,255,0.2);
+        }
+        .instructions {
+            text-align: left;
+            background: rgba(0,0,0,0.3);
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            border-left: 3px solid #00F5FF;
+        }
+        .instructions code {
+            background: rgba(255,255,255,0.05);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.8rem;
+            color: #00F5FF;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ Gerador de Ícones</h1>
+        <p>Esta ferramenta gera os ícones PNG necessários para o PWA <strong>PULSE BREAK</strong> a partir do arquivo <code>icon.svg</code>.</p>
+
+        <div class="preview" id="preview">
+            <!-- Será preenchido pelo JavaScript -->
+        </div>
+
+        <div class="btn-group" id="buttons">
+            <!-- Botões gerados dinamicamente -->
+        </div>
+
+        <div class="instructions">
+            <strong>Instruções:</strong><br>
+            1. Clique em cada botão para baixar o ícone no tamanho correspondente.<br>
+            2. Coloque todos os arquivos baixados (PNG) na pasta <code>assets/icons/</code>.<br>
+            3. Substitua os placeholders no <code>manifest.json</code> se necessário.<br>
+            <small>Os nomes dos arquivos devem ser: <code>icon-192.png</code>, <code>icon-256.png</code>, <code>icon-384.png</code>, <code>icon-512.png</code>.</small>
+        </div>
+
+        <div class="status" id="status">Aguardando ação...</div>
+
+        <div class="footer">PULSE BREAK • Professional Standing Reminder</div>
+    </div>
+
+    <script>
+        (function() {
+            const SIZES = [192, 256, 384, 512];
+            const SVG_PATH = 'assets/icons/icon.svg';
+            let svgLoaded = false;
+            let svgData = null;
+
+            const statusEl = document.getElementById('status');
+            const previewEl = document.getElementById('preview');
+            const buttonsEl = document.getElementById('buttons');
+
+            function setStatus(msg, success = false) {
+                statusEl.textContent = msg;
+                statusEl.className = 'status' + (success ? ' success' : '');
+            }
+
+            function loadSVG() {
+                fetch(SVG_PATH)
+                    .then(res => {
+                        if (!res.ok) throw new Error('SVG não encontrado');
+                        return res.text();
+                    })
+                    .then(svgText => {
+                        svgData = svgText;
+                        svgLoaded = true;
+                        setStatus('SVG carregado com sucesso!', true);
+                        renderButtons();
+                        renderPreview();
+                    })
+                    .catch(err => {
+                        setStatus('Erro ao carregar SVG: ' + err.message);
+                        console.error(err);
+                    });
+            }
+
+            function renderPreview() {
+                previewEl.innerHTML = '';
+                SIZES.forEach(size => {
+                    const div = document.createElement('div');
+                    div.className = 'preview-item';
+                    const img = document.createElement('img');
+                    img.src = `${SVG_PATH}?t=${Date.now()}`;
+                    img.style.width = Math.min(size / 4, 80) + 'px';
+                    img.style.height = 'auto';
+                    const span = document.createElement('span');
+                    span.textContent = `${size}x${size}`;
+                    div.appendChild(img);
+                    div.appendChild(span);
+                    previewEl.appendChild(div);
+                });
+            }
+
+            function renderButtons() {
+                buttonsEl.innerHTML = '';
+                SIZES.forEach(size => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn';
+                    btn.textContent = `Baixar ${size}x${size}`;
+                    btn.addEventListener('click', () => downloadIcon(size));
+                    buttonsEl.appendChild(btn);
+                });
+                // Botão para baixar todos (opcional)
+                const btnAll = document.createElement('button');
+                btnAll.className = 'btn primary';
+                btnAll.textContent = 'Baixar Todos (zip)';
+                btnAll.addEventListener('click', downloadAll);
+                buttonsEl.appendChild(btnAll);
+            }
+
+            function svgToPng(size) {
+                return new Promise((resolve, reject) => {
+                    if (!svgData) {
+                        reject(new Error('SVG não carregado'));
+                        return;
+                    }
+                    // Criar um blob a partir do SVG
+                    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = size;
+                        canvas.height = size;
+                        const ctx = canvas.getContext('2d');
+                        // Fundo preto para preservar a identidade visual (o SVG já tem fundo)
+                        ctx.fillStyle = '#050505';
+                        ctx.fillRect(0, 0, size, size);
+                        ctx.drawImage(img, 0, 0, size, size);
+                        URL.revokeObjectURL(url);
+                        canvas.toBlob(blob => {
+                            resolve(blob);
+                        }, 'image/png');
+                    };
+                    img.onerror = function() {
+                        reject(new Error('Falha ao carregar imagem SVG'));
+                    };
+                    img.src = url;
+                });
+            }
+
+            function downloadIcon(size) {
+                if (!svgLoaded) {
+                    setStatus('Aguarde o SVG carregar.');
+                    return;
+                }
+                setStatus(`Gerando ícone ${size}...`);
+                svgToPng(size)
+                    .then(blob => {
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = `icon-${size}.png`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        setStatus(`Ícone ${size} baixado com sucesso!`, true);
+                    })
+                    .catch(err => {
+                        setStatus('Erro: ' + err.message);
+                    });
+            }
+
+            function downloadAll() {
+                if (!svgLoaded) {
+                    setStatus('Aguarde o SVG carregar.');
+                    return;
+                }
+                setStatus('Gerando todos os ícones...');
+                const promises = SIZES.map(size => svgToPng(size));
+                Promise.all(promises)
+                    .then(blobs => {
+                        // Baixar um por um (não há suporte nativo a zip)
+                        blobs.forEach((blob, index) => {
+                            const link = document.createElement('a');
+                            link.href = URL.createObjectURL(blob);
+                            link.download = `icon-${SIZES[index]}.png`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            // Pequeno atraso para evitar bloqueio
+                            setTimeout(() => {}, 100);
+                        });
+                        setStatus('Todos os ícones foram baixados!', true);
+                    })
+                    .catch(err => {
+                        setStatus('Erro: ' + err.message);
+                    });
+            }
+
+            // Iniciar carregamento
+            loadSVG();
+        })();
+    </script>
+</body>
+</html>

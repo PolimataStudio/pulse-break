@@ -1,0 +1,8 @@
+{
+    "cycles": [20, 30, 20, 40],
+    "pauseDuration": 120,
+    "fullscreenAlert": 10,
+    "loop": true,
+    "sound": true,
+    "vibration": true
+}
